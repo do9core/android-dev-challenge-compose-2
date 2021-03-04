@@ -18,7 +18,11 @@ package com.example.androiddevchallenge
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.example.androiddevchallenge.components.Counters
 import com.example.androiddevchallenge.ui.theme.MyTheme
 import kotlinx.coroutines.delay
@@ -44,7 +48,7 @@ class MainActivity : AppCompatActivity() {
                         time = time.minusSeconds(1)
                         past = past.plusSeconds(1)
                         if (time.isZero) {
-                            active =  false
+                            active = false
                         }
                     }
                 }
