@@ -18,44 +18,41 @@ package com.example.androiddevchallenge
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.*
+import com.example.androiddevchallenge.components.Counters
 import com.example.androiddevchallenge.ui.theme.MyTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import java.time.Duration
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MyTheme {
-                MyApp()
+                var active by remember { mutableStateOf(true) }
+                var time by remember { mutableStateOf(Duration.ofMinutes(1)) }
+                var past by remember { mutableStateOf(Duration.ZERO) }
+                Counters(
+                    isActive = active,
+                    remainTimeText = time.text(),
+                    pastTimeText = past.text(),
+                )
+                LaunchedEffect(Unit) {
+                    while (isActive && active) {
+                        delay(1000)
+                        time = time.minusSeconds(1)
+                        past = past.plusSeconds(1)
+                        if (time.isZero) {
+                            active =  false
+                        }
+                    }
+                }
             }
         }
     }
-}
 
-// Start building your app here!
-@Composable
-fun MyApp() {
-    Surface(color = MaterialTheme.colors.background) {
-        Text(text = "Ready... Set... GO!")
-    }
-}
-
-@Preview("Light Theme", widthDp = 360, heightDp = 640)
-@Composable
-fun LightPreview() {
-    MyTheme {
-        MyApp()
-    }
-}
-
-@Preview("Dark Theme", widthDp = 360, heightDp = 640)
-@Composable
-fun DarkPreview() {
-    MyTheme(darkTheme = true) {
-        MyApp()
+    private fun Duration.text(): String {
+        return "${toMinutes()}:${seconds % 60}"
     }
 }
