@@ -17,46 +17,31 @@ package com.example.androiddevchallenge
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.example.androiddevchallenge.components.Counters
 import com.example.androiddevchallenge.ui.theme.MyTheme
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import java.time.Duration
 
 class MainActivity : AppCompatActivity() {
+
+    private val counterViewModel: CounterViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MyTheme {
-                var active by remember { mutableStateOf(true) }
-                var time by remember { mutableStateOf(Duration.ofMinutes(1)) }
-                var past by remember { mutableStateOf(Duration.ZERO) }
+                val counterState by counterViewModel.counterState.collectAsState()
                 Counters(
-                    isActive = active,
-                    remainTimeText = time.text(),
-                    pastTimeText = past.text(),
+                    state = counterState,
+                    onTimeSet = { duration -> counterViewModel.setTime(duration) },
+                    onBeginCountdown = { counterViewModel.start() },
+                    onReset = { counterViewModel.reset() },
+                    onPause = { counterViewModel.pause() },
+                    onResume = { counterViewModel.resume() },
                 )
-                LaunchedEffect(Unit) {
-                    while (isActive && active) {
-                        delay(1000)
-                        time = time.minusSeconds(1)
-                        past = past.plusSeconds(1)
-                        if (time.isZero) {
-                            active = false
-                        }
-                    }
-                }
             }
         }
-    }
-
-    private fun Duration.text(): String {
-        return "${toMinutes()}:${seconds % 60}"
     }
 }
