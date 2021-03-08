@@ -53,26 +53,22 @@ class CounterViewModel(
 
     private var counterJob: Job? = null
 
-    private val _counterState = MutableStateFlow<CounterState>(CounterState.Initial(Duration.ZERO))
+    private val _counterState = MutableStateFlow<CounterState>(CounterState.Initial())
     val counterState: StateFlow<CounterState> get() = _counterState
 
     fun reset() {
-        _counterState.value = CounterState.Initial(Duration.ZERO)
+        _counterState.value = CounterState.Initial()
     }
 
-    fun updateTime(text: String) {
-        val (hours, minutes, seconds) = text.split(":")
-        var formatText = "PT"
-        if (hours.isNotBlank()) {
-            formatText += "${hours}H"
+    fun updateTime(field: TimerField, value: Int) {
+        val state = counterState.value
+        check(state is CounterState.Initial)
+        val internalValue = value.coerceIn(0..99)
+        _counterState.value = when (field) {
+            TimerField.HOUR -> state.copy(hours = internalValue)
+            TimerField.MINUTE -> state.copy(minutes = internalValue)
+            TimerField.SECOND -> state.copy(seconds = internalValue)
         }
-        if (minutes.isNotBlank()) {
-            formatText += "${minutes}M"
-        }
-        if (seconds.isNotBlank()) {
-            formatText += "${seconds}S"
-        }
-        _counterState.value = CounterState.Initial(Duration.parse(formatText))
     }
 
     fun setTime() {

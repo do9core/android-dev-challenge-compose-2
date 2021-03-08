@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
                 val counterState by counterViewModel.counterState.collectAsState()
                 Counters(
                     state = counterState,
-                    onTimeUpdate = { timeText -> counterViewModel.updateTime(timeText) },
+                    onTimeUpdate = { field, value -> counterViewModel.updateTime(field, value) },
                     onTimeSet = { counterViewModel.setTime() },
                     onBeginCountdown = { counterViewModel.start() },
                     onReset = { counterViewModel.reset() },

@@ -20,8 +20,13 @@ import java.time.Duration
 sealed class CounterState(val isActive: Boolean) {
 
     data class Initial(
-        val total: Duration,
-    ) : CounterState(false)
+        val hours: Int = 0,
+        val minutes: Int = 0,
+        val seconds: Int = 0,
+    ) : CounterState(false) {
+
+        val total: Duration get() = Duration.parse("PT${hours}H${minutes}M${seconds}S")
+    }
 
     data class TimeSet(
         val total: Duration,

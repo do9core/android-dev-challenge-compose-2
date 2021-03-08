@@ -15,6 +15,8 @@
  */
 package com.example.androiddevchallenge.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -34,13 +36,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -54,26 +55,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.androiddevchallenge.CounterState
-import com.example.androiddevchallenge.fullText
+import com.example.androiddevchallenge.TimerField
 import com.example.androiddevchallenge.text
 import com.example.androiddevchallenge.ui.theme.pastCounterText
 import com.example.androiddevchallenge.ui.theme.pastText
 import com.example.androiddevchallenge.ui.theme.remainCounterText
-import com.example.androiddevchallenge.ui.theme.remainInputText
 import com.example.androiddevchallenge.ui.theme.remainText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -106,7 +108,7 @@ private fun animateDpRandomly(
 fun Counters(
     state: CounterState,
     onBeginCountdown: () -> Unit,
-    onTimeUpdate: (String) -> Unit,
+    onTimeUpdate: (TimerField, Int) -> Unit,
     onTimeSet: () -> Unit,
     onReset: () -> Unit,
     onPause: () -> Unit,
@@ -170,7 +172,7 @@ fun Counters(
 @Composable
 fun CounterRemain(
     state: CounterState,
-    onTimeUpdate: (String) -> Unit,
+    onTimeUpdate: (TimerField, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -198,29 +200,20 @@ fun CounterRemain(
         Box(modifier = Modifier.align(Alignment.Center)) {
             when (state) {
                 is CounterState.Initial -> {
-                    val (hourText, minuteText, secondText) = remember(state) {
-                        state.total.fullText().split(":")
-                    }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp)
+                    Row(
+                        modifier = Modifier.align(Alignment.Center)
                     ) {
-                        InputField(
-                            label = "H",
-                            text = hourText,
-                            onTextChanged = { onTimeUpdate("$it:$minuteText:$secondText") },
+                        PickerField(
+                            value = state.hours,
+                            onValueChanged = { onTimeUpdate(TimerField.HOUR, it) },
                         )
-                        InputField(
-                            label = "M",
-                            text = minuteText,
-                            onTextChanged = { onTimeUpdate("$hourText:$it:$secondText") },
+                        PickerField(
+                            value = state.minutes,
+                            onValueChanged = { onTimeUpdate(TimerField.MINUTE, it) },
                         )
-                        InputField(
-                            label = "S",
-                            text = secondText,
-                            imeAction = ImeAction.Done,
-                            onTextChanged = { onTimeUpdate("$hourText:$minuteText:$it") },
+                        PickerField(
+                            value = state.seconds,
+                            onValueChanged = { onTimeUpdate(TimerField.SECOND, it) },
                         )
                     }
                 }
@@ -275,6 +268,7 @@ fun CounterRemain(
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun CounterPast(
     state: CounterState,
@@ -326,7 +320,8 @@ fun CounterPast(
                                 }
                             }
                         }
-                    }
+                    },
+                    
                 )
             }
     ) {
@@ -336,7 +331,10 @@ fun CounterPast(
                 modifier = Modifier.fillMaxSize()
             )
         }
-        if (state is CounterState.Paused && isHolding) {
+        AnimatedVisibility(
+            visible = state is CounterState.Paused && isHolding,
+            modifier = Modifier.align(Alignment.Center)
+        ) {
             val pressScale by produceState(0f) {
                 while (isActive && value < 1f) {
                     value += .25f
@@ -358,8 +356,8 @@ fun CounterPast(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color.Red.copy(alpha = 0.25f * scale))
                     .scale(scale)
-                    .alpha(scale)
                     .align(Alignment.Center)
             ) {
                 drawCircle(
@@ -401,7 +399,7 @@ fun CounterPast(
                 }
                 is CounterState.Paused -> {
                     Text(
-                        text = "Paused",
+                        text = if (isHolding) "Hold to Stop" else "Paused",
                         style = pastText,
                         modifier = Modifier,
                     )
@@ -435,7 +433,7 @@ fun BounceRing(shrink: Boolean, modifier: Modifier = Modifier) {
     CircularProgressIndicator(
         progress = 1f,
         color = Color.White,
-        strokeWidth = ((1 - scale) * 8f).dp,
+        strokeWidth = 8f.dp * (1 - scale),
         modifier = Modifier
             .then(modifier)
             .scale(scale)
@@ -444,33 +442,57 @@ fun BounceRing(shrink: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun InputField(
-    label: String,
-    text: String,
-    imeAction: ImeAction = ImeAction.Next,
-    onTextChanged: (String) -> Unit,
-) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+fun PickerField(value: Int, onValueChanged: (newValue: Int) -> Unit) {
+    Column {
+        IconButton(
+            onClick = { onValueChanged(value.inc()) },
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) {
+            Triangle(
+                color = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp),
+            )
+        }
         Text(
-            text = "$label:",
-            style = remainInputText.copy(
-                fontFamily = FontFamily.Monospace,
-                textAlign = TextAlign.End,
+            text = "%02d".format(value),
+            style = remainCounterText.copy(
+                fontSize = 36.sp
             ),
-            modifier = Modifier
-                .align(Alignment.CenterVertically)
-                .weight(0.55f),
+            modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        BasicTextField(
-            value = text,
-            onValueChange = { onTextChanged(it) },
-            textStyle = remainInputText,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number,
-                imeAction = imeAction,
-            ),
-            modifier = Modifier
-                .weight(0.5f),
+        IconButton(
+            onClick = { onValueChanged(value.dec()) },
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) {
+            Triangle(
+                color = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp).rotate(180f),
+            )
+        }
+    }
+}
+
+@Composable
+fun Triangle(
+    color: Color,
+    modifier: Modifier,
+) {
+    Canvas(modifier = modifier) {
+        val path = Path().apply {
+            val centerX = size.width / 2
+            moveTo(centerX, 0f)
+            relativeLineTo(-centerX, size.height)
+            relativeLineTo(size.width, 0f)
+            close()
+        }
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(
+                width = density * 3f,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+            )
         )
     }
 }
