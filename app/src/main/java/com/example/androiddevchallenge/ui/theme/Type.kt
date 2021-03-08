@@ -16,10 +16,41 @@
 package com.example.androiddevchallenge.ui.theme
 
 import androidx.compose.material.Typography
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+
+private val mainText = Color.White.copy(alpha = 0.7f)
+
+val remainText = TextStyle(
+    fontFamily = FontFamily.Serif,
+    fontWeight = FontWeight.W500,
+    fontSize = 32.sp,
+    color = mainText,
+)
+
+val remainCounterText = TextStyle(
+    fontFamily = FontFamily.Monospace,
+    fontWeight = FontWeight.ExtraBold,
+    fontSize = 64.sp,
+    color = mainText,
+)
+
+val pastText = TextStyle(
+    fontFamily = FontFamily.Serif,
+    fontWeight = FontWeight.W300,
+    fontSize = 18.sp,
+    color = mainText,
+)
+
+val pastCounterText = TextStyle(
+    fontFamily = FontFamily.Monospace,
+    fontWeight = FontWeight.Normal,
+    fontSize = 18.sp,
+    color = mainText,
+)
 
 // Set of Material typography styles to start with
 val typography = Typography(
