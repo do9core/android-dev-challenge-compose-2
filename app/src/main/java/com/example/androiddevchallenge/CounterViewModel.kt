@@ -15,7 +15,12 @@
  */
 package com.example.androiddevchallenge
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import androidx.core.content.getSystemService
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,26 +33,52 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Duration
 
+fun Duration.fullText(): String {
+    val hours = "%02d".format(toHours())
+    val minutes = "%02d".format(toMinutes() % 60)
+    val seconds = "%02d".format(seconds % 60)
+    return "$hours:$minutes:$seconds"
+}
+
 fun Duration.text(): String {
     val hours = toHours().takeIf { it > 0 }?.let { "%02d:".format(it) }.orEmpty()
-    val minutes = "%02d".format(toMinutes())
+    val minutes = "%02d".format(toMinutes() % 60)
     val seconds = "%02d".format(seconds % 60)
     return "${hours}$minutes:$seconds"
 }
 
-class CounterViewModel : ViewModel() {
+class CounterViewModel(
+    application: Application
+) : AndroidViewModel(application) {
 
     private var counterJob: Job? = null
 
-    private val _counterState = MutableStateFlow<CounterState>(CounterState.Initial)
+    private val _counterState = MutableStateFlow<CounterState>(CounterState.Initial(Duration.ZERO))
     val counterState: StateFlow<CounterState> get() = _counterState
 
     fun reset() {
-        _counterState.value = CounterState.Initial
+        _counterState.value = CounterState.Initial(Duration.ZERO)
     }
 
-    fun setTime(duration: Duration) {
-        _counterState.value = CounterState.TimeSet(duration)
+    fun updateTime(text: String) {
+        val (hours, minutes, seconds) = text.split(":")
+        var formatText = "PT"
+        if (hours.isNotBlank()) {
+            formatText += "${hours}H"
+        }
+        if (minutes.isNotBlank()) {
+            formatText += "${minutes}M"
+        }
+        if (seconds.isNotBlank()) {
+            formatText += "${seconds}S"
+        }
+        _counterState.value = CounterState.Initial(Duration.parse(formatText))
+    }
+
+    fun setTime() {
+        val state = _counterState.value
+        require(state is CounterState.Initial)
+        _counterState.value = CounterState.TimeSet(state.total)
     }
 
     fun start() {
@@ -105,12 +136,27 @@ class CounterViewModel : ViewModel() {
                 remain -= Duration.ofSeconds(1)
                 if (remain <= Duration.ZERO) {
                     _counterState.value = CounterState.Finish
+                    vibrate()
                     break
                 }
                 _counterState.value = CounterState.Running(
                     total = totalTime,
                     remain = remain
                 )
+            }
+        }
+    }
+
+    private fun vibrate() {
+        viewModelScope.launch {
+            val context = getApplication<Application>()
+            val vibrator = context.getSystemService<Vibrator>() ?: return@launch
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                @Suppress("DEPRECATION") // Low sdk version.
+                vibrator.vibrate(500)
+            } else {
+                val effect = VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE)
+                vibrator.vibrate(effect)
             }
         }
     }

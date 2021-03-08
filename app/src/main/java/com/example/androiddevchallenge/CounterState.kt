@@ -19,7 +19,9 @@ import java.time.Duration
 
 sealed class CounterState(val isActive: Boolean) {
 
-    object Initial : CounterState(false)
+    data class Initial(
+        val total: Duration,
+    ) : CounterState(false)
 
     data class TimeSet(
         val total: Duration,

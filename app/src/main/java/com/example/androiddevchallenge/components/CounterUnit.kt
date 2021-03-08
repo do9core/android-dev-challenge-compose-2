@@ -28,12 +28,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -51,17 +55,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.androiddevchallenge.CounterState
+import com.example.androiddevchallenge.fullText
 import com.example.androiddevchallenge.text
 import com.example.androiddevchallenge.ui.theme.pastCounterText
 import com.example.androiddevchallenge.ui.theme.pastText
 import com.example.androiddevchallenge.ui.theme.remainCounterText
+import com.example.androiddevchallenge.ui.theme.remainInputText
 import com.example.androiddevchallenge.ui.theme.remainText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import java.time.Duration
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -90,7 +99,8 @@ private fun animateDpRandomly(
 fun Counters(
     state: CounterState,
     onBeginCountdown: () -> Unit,
-    onTimeSet: (Duration) -> Unit,
+    onTimeUpdate: (String) -> Unit,
+    onTimeSet: () -> Unit,
     onReset: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
@@ -123,6 +133,7 @@ fun Counters(
         Spacer(modifier = Modifier.weight(sideSpacer))
         CounterRemain(
             state = state,
+            onTimeUpdate = onTimeUpdate,
             modifier = Modifier
                 .weight(remainPart)
                 .align(Alignment.CenterHorizontally)
@@ -152,6 +163,7 @@ fun Counters(
 @Composable
 fun CounterRemain(
     state: CounterState,
+    onTimeUpdate: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -178,12 +190,32 @@ fun CounterRemain(
         }
         Box(modifier = Modifier.align(Alignment.Center)) {
             when (state) {
-                CounterState.Initial -> {
-                    Text(
-                        text = "Click Start!",
-                        style = remainText,
-                        modifier = Modifier,
-                    )
+                is CounterState.Initial -> {
+                    val (hourText, minuteText, secondText) = remember(state) {
+                        state.total.fullText().split(":")
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp)
+                    ) {
+                        InputField(
+                            label = "H",
+                            text = hourText,
+                            onTextChanged = { onTimeUpdate("$it:$minuteText:$secondText") },
+                        )
+                        InputField(
+                            label = "M",
+                            text = minuteText,
+                            onTextChanged = { onTimeUpdate("$hourText:$it:$secondText") },
+                        )
+                        InputField(
+                            label = "S",
+                            text = secondText,
+                            imeAction = ImeAction.Done,
+                            onTextChanged = { onTimeUpdate("$hourText:$minuteText:$it") },
+                        )
+                    }
                 }
                 is CounterState.TimeSet -> {
                     Text(
@@ -239,7 +271,7 @@ fun CounterRemain(
 @Composable
 fun CounterPast(
     state: CounterState,
-    onTimeSet: (Duration) -> Unit,
+    onTimeSet: () -> Unit,
     onBeginCountdown: () -> Unit,
     onReset: () -> Unit,
     onPause: () -> Unit,
@@ -264,11 +296,11 @@ fun CounterPast(
             .clip(CircleShape)
             .clickable {
                 when (state) {
-                    is CounterState.Initial -> onTimeSet(Duration.ofSeconds(15))
+                    is CounterState.Initial -> onTimeSet()
                     is CounterState.TimeSet -> onBeginCountdown()
                     is CounterState.Running -> onPause()
                     is CounterState.Paused -> onResume()
-                    CounterState.Finish -> onReset()
+                    is CounterState.Finish -> onReset()
                     else -> Unit
                 }
             }
@@ -281,7 +313,7 @@ fun CounterPast(
         }
         Box(modifier = Modifier.align(Alignment.Center)) {
             when (state) {
-                CounterState.Initial -> {
+                is CounterState.Initial -> {
                     Text(
                         text = "Set time.",
                         style = pastText,
@@ -351,4 +383,36 @@ fun BounceRing(shrink: Boolean, modifier: Modifier = Modifier) {
             .scale(scale)
             .alpha(if (shrink) 1 - scale else scale)
     )
+}
+
+@Composable
+fun InputField(
+    label: String,
+    text: String,
+    imeAction: ImeAction = ImeAction.Next,
+    onTextChanged: (String) -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "$label:",
+            style = remainInputText.copy(
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.End,
+            ),
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .weight(0.55f),
+        )
+        BasicTextField(
+            value = text,
+            onValueChange = { onTextChanged(it) },
+            textStyle = remainInputText,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = imeAction,
+            ),
+            modifier = Modifier
+                .weight(0.5f),
+        )
+    }
 }

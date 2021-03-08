@@ -31,10 +31,17 @@ val remainText = TextStyle(
     color = mainText,
 )
 
+val remainInputText = TextStyle(
+    fontFamily = FontFamily.SansSerif,
+    fontWeight = FontWeight.W300,
+    fontSize = 24.sp,
+    color = mainText,
+)
+
 val remainCounterText = TextStyle(
     fontFamily = FontFamily.Monospace,
     fontWeight = FontWeight.ExtraBold,
-    fontSize = 64.sp,
+    fontSize = 56.sp,
     color = mainText,
 )
 
