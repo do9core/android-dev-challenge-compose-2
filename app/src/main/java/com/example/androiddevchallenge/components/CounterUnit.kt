@@ -21,11 +21,13 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,8 +45,11 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -55,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RadialGradientShader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,6 +77,7 @@ import com.example.androiddevchallenge.ui.theme.remainInputText
 import com.example.androiddevchallenge.ui.theme.remainText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -278,6 +285,8 @@ fun CounterPast(
     onResume: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
+    var isHolding by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .then(modifier)
@@ -294,15 +303,31 @@ fun CounterPast(
             )
             .aspectRatio(1f)
             .clip(CircleShape)
-            .clickable {
-                when (state) {
-                    is CounterState.Initial -> onTimeSet()
-                    is CounterState.TimeSet -> onBeginCountdown()
-                    is CounterState.Running -> onPause()
-                    is CounterState.Paused -> onResume()
-                    is CounterState.Finish -> onReset()
-                    else -> Unit
-                }
+            .pointerInput(state) {
+                detectTapGestures(
+                    onPress = {
+                        val timeStart = System.currentTimeMillis()
+                        isHolding = true
+                        scope.launch {
+                            try {
+                                awaitRelease()
+                            } finally {
+                                isHolding = false
+                                val duration = System.currentTimeMillis() - timeStart
+                                if (duration < 200) {
+                                    when (state) {
+                                        is CounterState.Initial -> onTimeSet()
+                                        is CounterState.TimeSet -> onBeginCountdown()
+                                        is CounterState.Running -> onPause()
+                                        is CounterState.Paused -> onResume()
+                                        is CounterState.Finish -> onReset()
+                                        else -> Unit
+                                    }
+                                }
+                            }
+                        }
+                    }
+                )
             }
     ) {
         if (state.isActive) {
@@ -310,6 +335,39 @@ fun CounterPast(
                 shrink = true,
                 modifier = Modifier.fillMaxSize()
             )
+        }
+        if (state is CounterState.Paused && isHolding) {
+            val pressScale by produceState(0f) {
+                while (isActive && value < 1f) {
+                    value += .25f
+                    delay(400)
+                }
+            }
+            val scale by animateFloatAsState(
+                targetValue = pressScale,
+                animationSpec = TweenSpec(
+                    durationMillis = 400,
+                    easing = LinearEasing,
+                ),
+                finishedListener = {
+                    if (it >= 1f) {
+                        onReset()
+                    }
+                }
+            )
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scale(scale)
+                    .alpha(scale)
+                    .align(Alignment.Center)
+            ) {
+                drawCircle(
+                    color = Color.Red.copy(alpha = .6f),
+                    center = center,
+                    radius = minOf(size.width, size.height) / 2,
+                )
+            }
         }
         Box(modifier = Modifier.align(Alignment.Center)) {
             when (state) {
