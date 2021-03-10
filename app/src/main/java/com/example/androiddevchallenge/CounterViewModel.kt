@@ -33,15 +33,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Duration
 
-fun Duration.fullText(): String {
-    val hours = "%02d".format(toHours())
-    val minutes = "%02d".format(toMinutes() % 60)
-    val seconds = "%02d".format(seconds % 60)
-    return "$hours:$minutes:$seconds"
-}
-
 fun Duration.text(): String {
-    val hours = toHours().takeIf { it > 0 }?.let { "%02d:".format(it) }.orEmpty()
+    val hours = "%02d:".format(toHours())
     val minutes = "%02d".format(toMinutes() % 60)
     val seconds = "%02d".format(seconds % 60)
     return "${hours}$minutes:$seconds"
@@ -56,10 +49,6 @@ class CounterViewModel(
     private val _counterState = MutableStateFlow<CounterState>(CounterState.Initial())
     val counterState: StateFlow<CounterState> get() = _counterState
 
-    fun reset() {
-        _counterState.value = CounterState.Initial()
-    }
-
     fun updateTime(field: TimerField, value: Int) {
         val state = counterState.value
         check(state is CounterState.Initial)
@@ -71,74 +60,46 @@ class CounterViewModel(
         }
     }
 
-    fun setTime() {
-        val state = _counterState.value
-        require(state is CounterState.Initial)
-        _counterState.value = CounterState.TimeSet(state.total)
-    }
-
     fun start() {
         val state = counterState.value
-        require(state is CounterState.TimeSet)
+        require(state is CounterState.Initial)
         counterJob = viewModelScope.countdown(state.total)
     }
 
     fun pause() {
         val state = counterState.value
-        require(state is CounterState.Running)
+        if (state !is CounterState.Running) {
+            return
+        }
         viewModelScope.launch {
             counterJob?.cancelAndJoin()
             counterJob = null
-            _counterState.value = CounterState.Paused(
-                total = state.total,
-                remain = state.remain,
-            )
+            _counterState.value = CounterState.Paused(state.total, state.remain)
         }
     }
 
     fun resume() {
         val state = counterState.value
         require(state is CounterState.Paused)
-        counterJob = viewModelScope.countdown(state.total, state.remain, showBeginning = false)
+        counterJob = viewModelScope.countdown(state.total, state.remain)
     }
 
     private fun CoroutineScope.countdown(
         totalTime: Duration,
         remainTime: Duration? = null,
-        showBeginning: Boolean = true,
     ): Job {
         return launch(Dispatchers.Default) {
             var remain = remainTime ?: totalTime
-
-            if (showBeginning) {
-                _counterState.value = CounterState.Beginning("Ready!")
-                delay(1000)
-                _counterState.value = CounterState.Beginning("3!")
-                delay(1000)
-                _counterState.value = CounterState.Beginning("2!")
-                delay(1000)
-                _counterState.value = CounterState.Beginning("1!")
-                delay(1000)
-                _counterState.value = CounterState.Beginning("Go!")
-                delay(1000)
-            }
-
-            _counterState.value = CounterState.Running(
-                total = totalTime,
-                remain = remain,
-            )
+            _counterState.value = CounterState.Running(totalTime, remain)
             while (isActive) {
                 delay(1000)
                 remain -= Duration.ofSeconds(1)
                 if (remain <= Duration.ZERO) {
-                    _counterState.value = CounterState.Finish
+                    _counterState.value = CounterState.Initial()
                     vibrate()
                     break
                 }
-                _counterState.value = CounterState.Running(
-                    total = totalTime,
-                    remain = remain
-                )
+                _counterState.value = CounterState.Running(totalTime, remain)
             }
         }
     }

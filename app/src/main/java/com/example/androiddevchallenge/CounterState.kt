@@ -19,34 +19,39 @@ import java.time.Duration
 
 sealed class CounterState(val isActive: Boolean) {
 
+    abstract val hours: Int
+    abstract val minutes: Int
+    abstract val seconds: Int
+
+    val isReady get() = hours + minutes + seconds > 0
+
     data class Initial(
-        val hours: Int = 0,
-        val minutes: Int = 0,
-        val seconds: Int = 0,
+        override val hours: Int = 0,
+        override val minutes: Int = 0,
+        override val seconds: Int = 0,
     ) : CounterState(false) {
 
         val total: Duration get() = Duration.parse("PT${hours}H${minutes}M${seconds}S")
     }
-
-    data class TimeSet(
-        val total: Duration,
-    ) : CounterState(false)
-
-    data class Beginning(
-        val message: String,
-    ) : CounterState(false)
 
     data class Running(
         val total: Duration,
         val remain: Duration,
     ) : CounterState(true) {
         val past: Duration get() = total - remain
+
+        override val hours: Int get() = remain.toHours().toInt()
+        override val minutes: Int get() = remain.toMinutes().rem(60).toInt()
+        override val seconds: Int get() = remain.seconds.rem(60).toInt()
     }
 
     data class Paused(
         val total: Duration,
         val remain: Duration,
-    ) : CounterState(false)
+    ) : CounterState(false) {
 
-    object Finish : CounterState(false)
+        override val hours: Int get() = remain.toHours().toInt()
+        override val minutes: Int get() = remain.toMinutes().rem(60).toInt()
+        override val seconds: Int get() = remain.seconds.rem(60).toInt()
+    }
 }

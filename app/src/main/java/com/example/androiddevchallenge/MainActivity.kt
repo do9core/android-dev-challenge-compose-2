@@ -36,9 +36,7 @@ class MainActivity : AppCompatActivity() {
                 Counters(
                     state = counterState,
                     onTimeUpdate = { field, value -> counterViewModel.updateTime(field, value) },
-                    onTimeSet = { counterViewModel.setTime() },
                     onBeginCountdown = { counterViewModel.start() },
-                    onReset = { counterViewModel.reset() },
                     onPause = { counterViewModel.pause() },
                     onResume = { counterViewModel.resume() },
                 )
